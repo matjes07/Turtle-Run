@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Turtle Run</title>
+<style>
+  /* Grundstyles */
+  body {
+    margin: 0;
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    background-color: #e0f7da;
+    background-image: url('background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  /* Titelbereich */
+  .header {
+    position: relative;
+    width: 100%;
+    height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #2a5d2a;
+    text-shadow: 2px 2px 5px #b0e0a8;
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .header h1 {
+    background-color: rgba(144, 238, 144, 0.7);
+    padding: 15px 40px;
+    border-radius: 50px;
+    font-size: 3em;
+    letter-spacing: 0.1em;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    font-weight: bold;
+    user-select: none;
+    margin: 0 20px;
+  }
+
+  .header img {
+    height: 150px;
+    user-select: none;
+  }
+
+  /* Spielbereich */
+  #gameContainer {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background: rgba(255, 255, 255, 0.7);
+    overflow: hidden;
+    border-top: 3px solid #2a5d2a;
+    border-bottom: 3px solid #2a5d2a;
+  }
+
+  /* Dino und Turtle Styles */
+  #dino, #turtle {
+    position: absolute;
+    bottom: 50px;
+    width: 80px;
+    user-select: none;
+    transition: bottom 0.2s;
+  }
+  #dino {
+    left: 50px;
+  }
+  #turtle {
+    left: 300px;
+  }
+
+  /* Hindernisse */
+  .obstacle {
+    position: absolute;
+    bottom: 50px;
+    width: 50px;
+    height: 50px;
+    background-color: #4caf50;
+    border-radius: 10px;
+  }
+
+  /* Steuerkreuz (Controller) */
+  #controller {
+    margin-top: 20px;
+    text-align: center;
+    user-select: none;
+  }
+  .btn {
+    display: inline-block;
+    width: 60px;
+    height: 60px;
+    margin: 5px;
+    background-color: #2a5d2a;
+    color: white;
+    font-size: 2em;
+    line-height: 60px;
+    border-radius: 10px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    transition: background-color 0.2s;
+  }
+  .btn:active {
+    background-color: #1b3d1b;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="turtle.png" alt="Turtle" />
+  <h1>Turtle Run</h1>
+  <img src="dino.png" alt="Dino" />
+</div>
+
+<div id="gameContainer">
+  <img id="dino" src="dino.png" alt="Dino">
+  <img id="turtle" src="turtle.png" alt="Turtle">
+
+  <!-- Beispielhindernisse -->
+  <div class="obstacle" style="left: 200px; height: 70px; bottom: 50px;"></div>
+  <div class="obstacle" style="left: 400px; height: 30px; bottom: 50px;"></div>
+</div>
+
+<!-- Steuerkreuz -->
+<div id="controller">
+  <div class="btn" id="btnUp">⬆️</div>
+  <div class="btn" id="btnDown">⬇️</div>
+</div>
+
+<script>
+  const dino = document.getElementById('dino');
+  const turtle = document.getElementById('turtle');
+  const obstacles = document.querySelectorAll('.obstacle');
+
+  let dinoPos = { x: 50, y: 0 }; // y = 0 = auf Boden
+  let turtlePos = { x: 300, y: 0 };
+
+  // Höhen (in px) für "springen" und "ducken"
+  const jumpHeight = 100;
+  const crawlHeight = -30; // ducken = tiefer
+  let dinoState = 'stand'; // 'stand', 'jump', 'crawl'
+
+  // Steuerfunktionen
+  function updateDinoPosition() {
+    // bottom wird gesetzt durch y Position (0 = 50px)
+    dino.style.left = dinoPos.x + 'px';
+    dino.style.bottom = (50 + dinoPos.y) + 'px';
+  }
+
+  function jump() {
+    if (dinoState === 'stand') {
+      dinoState = 'jump';
+      dinoPos.y = jumpHeight;
+      updateDinoPosition();
+      setTimeout(() => {
+        dinoPos.y = 0;
+        dinoState = 'stand';
+        updateDinoPosition();
+      }, 600);
+    }
+  }
+
+  function crawl() {
+    if (dinoState === 'stand') {
+      dinoState = 'crawl';
+      dinoPos.y = crawlHeight;
+      updateDinoPosition();
+      setTimeout(() => {
+        dinoPos.y = 0;
+        dinoState = 'stand';
+        updateDinoPosition();
+      }, 600);
+    }
+  }
+
+  // Steuerung per Buttons
+  document.getElementById('btnUp').addEventListener('click', jump);
+  document.getElementById('btnDown').addEventListener('click', crawl);
+
+  // Steuerung per Tastatur
+  window.addEventListener('keydown', (e) => {
+    if(e.repeat) return; // keine Wiederholungen bei gedrückter Taste
+    if(e.key === 'ArrowUp') jump();
+    if(e.key === 'ArrowDown') crawl();
+  });
+
+  // Dino verfolgt Turtle (ganz simple Bewegung)
+  function moveDinoTowardsTurtle() {
+    if (dinoPos.x < turtlePos.x - 50) { // Abstand einhalten
+      dinoPos.x += 1; // Geschwindigkeit Dino
+      updateDinoPosition();
+    }
+  }
+
+  setInterval(moveDinoTowardsTurtle, 20);
+
+  // Du kannst hier noch Kollisionserkennung, Hindernislogik, gewinnen/verlieren etc. hinzufügen.
+</script>
+
+</body>
+</html>
