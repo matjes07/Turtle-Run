@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dino jagt Schildkröte</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #dff3f9; overflow: hidden; }
+    #gameContainer, #startScreen { width: 100vw; height: 100vh; position: relative; }
+    #startScreen {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      background: linear-gradient(#ade, #cdf);
+    }
+    #startScreen h1 { font-size: 3em; margin-bottom: 1em; }
+    #startScreen button {
+      font-size: 1.5em;
+      padding: 0.5em 1.5em;
+      cursor: pointer;
+    }
+    canvas {
+      background: #c8f0e8;
+      display: block;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+
+<div id="startScreen">
+  <h1>🐢 Flucht vor dem Dino 🦖</h1>
+  <button onclick="startGame()">Start</button>
+</div>
+
+<div id="gameContainer" style="display: none;">
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+</div>
+
+<script>
+let canvas = document.getElementById("gameCanvas");
+let ctx = canvas.getContext("2d");
+
+const bgImg = new Image();
+bgImg.src = "background.png";
+
+const turtleImg = new Image();
+turtleImg.src = "turtle.png";
+
+const dinoImg = new Image();
+dinoImg.src = "dino.png";
+
+let turtle = { x: 100, y: 300, w: 40, h: 40, vy: 0, jumping: false, ducking: false };
+let dino = { x: 20, y: 300, w: 50, h: 50 };
+let blocks = [];
+let gravity = 1;
+let gameSpeed = 3;
+
+function startGame() {
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("gameContainer").style.display = "block";
+  spawnBlock();
+  requestAnimationFrame(gameLoop);
+}
+
+function spawnBlock() {
+  setInterval(() => {
+    let isLow = Math.random() > 0.5;
+    blocks.push({
+      x: canvas.width,
+      y: isLow ? 300 : 250,
+      w: isLow ? 40 : 60,
+      h: isLow ? 40 : 20,
+      low: isLow
+    });
+  }, 2000);
+}
+
+function gameLoop() {
+  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+  turtle.vy += gravity;
+  turtle.y += turtle.vy;
+
+  if (turtle.y > 300) {
+    turtle.y = 300;
+    turtle.vy = 0;
+    turtle.jumping = false;
+  }
+
+  if (turtle.ducking) turtle.h = 20;
+  else turtle.h = 40;
+
+  dino.x += 0.5;
+
+  for (let i = 0; i < blocks.length; i++) {
+    let b = blocks[i];
+    b.x -= gameSpeed;
+    ctx.fillStyle = "#555";
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    if (turtle.x < b.x + b.w &&
+        turtle.x + turtle.w > b.x &&
+        turtle.y < b.y + b.h &&
+        turtle.y + turtle.h > b.y) {
+      alert("Game Over! 🐢 wurde gefangen!");
+      location.reload();
+    }
+  }
+
+  ctx.drawImage(turtleImg, turtle.x, turtle.y, turtle.w, turtle.h);
+  ctx.drawImage(dinoImg, dino.x, dino.y, dino.w, dino.h);
+
+  requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowUp" && !turtle.jumping) {
+    turtle.vy = -15;
+    turtle.jumping = true;
+  }
+  if (e.key === "ArrowDown") {
+    turtle.ducking = true;
+  }
+});
+
+document.addEventListener("keyup", e => {
+  if (e.key === "ArrowDown") {
+    turtle.ducking = false;
+  }
+});
+
+let level = 1;
+let levelDuration = 15000; // 15 Sekunden pro Level
+let angle = 0;
+let flying = false;
+let currentTheme = { bg: "#c8f0e8", block: "#555", mode: "normal" };
+
+function getRandomTheme() {
+  const themes = [
+    { bg: "#c8f0e8", block: "#555", mode: "normal" },
+    { bg: "#1a1a1a", block: "#f0f0f0", mode: "inverted" },
+    { bg: "#ffefd5", block: "#8b0000", mode: "sunset" },
+    { bg: "#d0f0c0", block: "#004400", mode: "forest" }
+  ];
+  return themes[Math.floor(Math.random() * themes.length)];
+}
+
+function updateTheme() {
+  currentTheme = getRandomTheme();
+  canvas.style.filter = currentTheme.mode === "inverted" ? "invert(1)" : "none";
+}
+
+function nextLevel() {
+  level++;
+  updateTheme();
+  animateFlyAway();
+}
+
+function animateFlyAway() {
+  flying = true;
+  let flyY = turtle.y;
+
+  function fly() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = currentTheme.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // dino bleibt stehen während Levelwechsel
+    ctx.drawImage(dinoImg, dino.x, dino.y, dino.w, dino.h);
+
+    ctx.save();
+    ctx.translate(turtle.x + turtle.w / 2, flyY + turtle.h / 2);
+    ctx.rotate(angle);
+    ctx.drawImage(turtleImg, -turtle.w / 2, -turtle.h / 2, turtle.w, turtle.h);
+    ctx.restore();
+
+    angle += 0.1;
+    flyY -= 5;
+
+    if (flyY > -turtle.h) {
+      requestAnimationFrame(fly);
+    } else {
+      // Reset turtle
+      turtle.y = 300;
+      turtle.vy = 0;
+      flying = false;
+      blocks = [];
+      setTimeout(() => {
+        setTimeout(nextLevel, levelDuration);
+      }, 500);
+    }
+  }
+
+  fly();
+}
+
+setTimeout(nextLevel, levelDuration);
+
+function spawnBlock() {
+  setInterval(() => {
+    let type = Math.random();
+    if (type < 0.6) {
+      // normal block
+      blocks.push({
+        x: canvas.width,
+        y: 300,
+        w: 40 + Math.random() * 40,
+        h: 40,
+        type: "normal"
+      });
+    } else {
+      // spike
+      blocks.push({
+        x: canvas.width,
+        y: 300,
+        w: 30,
+        h: 30,
+        type: "spike"
+      });
+    }
+  }, 1500);
+}
+
+function gameLoop() {
+  if (flying) return;
+
+  ctx.fillStyle = currentTheme.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  turtle.vy += gravity;
+  turtle.y += turtle.vy;
+
+  if (turtle.y > 300) {
+    turtle.y = 300;
+    turtle.vy = 0;
+    turtle.jumping = false;
+  }
+
+  if (turtle.ducking) turtle.h = 20;
+  else turtle.h = 40;
+
+  dino.x += 0.3 + level * 0.1;
+
+  // dino-turtle collision
+  if (turtle.x < dino.x + dino.w &&
+      turtle.x + turtle.w > dino.x &&
+      turtle.y < dino.y + dino.h &&
+      turtle.y + turtle.h > dino.y) {
+    alert("Game Over! 🐢 vom Dino gefressen!");
+    location.reload();
+  }
+
+  for (let i = 0; i < blocks.length; i++) {
+    let b = blocks[i];
+    b.x -= gameSpeed + level * 0.2;
+    ctx.fillStyle = currentTheme.block;
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+    if (turtle.x < b.x + b.w &&
+        turtle.x + turtle.w > b.x &&
+        turtle.y < b.y + b.h &&
+        turtle.y + turtle.h > b.y) {
+      alert("Game Over! 🐢 hat ein Hindernis getroffen!");
+      location.reload();
+    }
+  }
+
+  ctx.drawImage(turtleImg, turtle.x, turtle.y, turtle.w, turtle.h);
+  ctx.drawImage(dinoImg, dino.x, dino.y, dino.w, dino.h);
+
+  requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowUp" && !turtle.jumping) {
+    turtle.vy = -15;
+    turtle.jumping = true;
+  }
+  if (e.key === "ArrowDown") {
+    turtle.ducking = true;
+  }
+});
+
+document.addEventListener("keyup", e => {
+  if (e.key === "ArrowDown") {
+    turtle.ducking = false;
+  }
+});
+</script>
+
+</body>
+</html>
