@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turtle Run v4.0</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #0f1f0f;
+      color: #aefca2;
+      overflow: hidden;
+    }
+
+    #start-menu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      background: #103d10cc;
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 0 20px #3f3;
+    }
+
+    #start-menu h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    #start-menu button {
+      margin: 0.5rem;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 10px;
+      background: #3f3;
+      color: #002200;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #start-menu button:hover {
+      background: #6f6;
+    }
+
+    canvas {
+      display: none;
+      background: linear-gradient(to bottom, #061b06, #103d10);
+    }
+  </style>
+</head>
+<body>
+  <div id="start-menu">
+    <h1>Turtle Run 🐢</h1>
+    <button onclick="startGame()">▶ Spiel starten</button>
+    <button onclick="toggleSound()">🔊 Sound: <span id="sound-state">an</span></button>
+    <p>Münzen: <span id="coin-count">0</span></p>
+    <div id="trophies"></div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Audio -->
+  <audio id="clickSound" src="assets/sound-click.mp3"></audio>
+  <audio id="coinSound" src="assets/sound-coin.mp3"></audio>
+  <audio id="levelupSound" src="assets/sound-levelup.mp3"></audio>
+  <audio id="bgMusic" src="assets/music.mp3" loop></audio>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let running = false;
+    let coins = Number(localStorage.getItem("coins") || 0);
+    let soundEnabled = true;
+
+    // Bilder laden
+    const turtleImg = new Image();
+    turtleImg.src = "assets/turtle.png";
+
+    const dinoImg = new Image();
+    dinoImg.src = "assets/dino.png";
+
+    const coinImg = new Image();
+    coinImg.src = "assets/coin.png";
+
+    // Sounds
+    const clickSound = document.getElementById("clickSound");
+    const coinSound = document.getElementById("coinSound");
+    const levelupSound = document.getElementById("levelupSound");
+    const bgMusic = document.getElementById("bgMusic");
+
+    // Spielzustände
+    let player = { x: 100, y: canvas.height / 2, size: 80, dy: 0 };
+    let dino = { x: -200, y: canvas.height / 2, size: 100 };
+    let obstacles = [];
+    let coin = { x: 600, y: 200 };
+    let gravity = 0.5;
+    let jumpPower = -10;
+
+    function startGame() {
+      document.getElementById("start-menu").style.display = "none";
+      canvas.style.display = "block";
+      running = true;
+      if (soundEnabled) bgMusic.play();
+      document.getElementById("coin-count").textContent = coins;
+      animate();
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById("sound-state").textContent = soundEnabled ? "an" : "aus";
+      if (!soundEnabled) {
+        bgMusic.pause();
+      } else if (running) {
+        bgMusic.play();
+      }
+    }
+
+    function playSound(sound) {
+      if (soundEnabled) {
+        sound.currentTime = 0;
+        sound.play();
+      }
+    }
+
+    function drawPlayer() {
+      ctx.drawImage(turtleImg, player.x, player.y, player.size, player.size);
+    }
+
+    function drawDino() {
+      dino.x += 2;
+      ctx.drawImage(dinoImg, dino.x, dino.y, dino.size, dino.size);
+    }
+
+    function drawCoin() {
+      ctx.drawImage(coinImg, coin.x, coin.y, 40, 40);
+    }
+
+    function handleInput(e) {
+      if (e.code === "Space" || e.code === "ArrowUp") {
+        player.dy = jumpPower;
+      }
+    }
+
+    document.addEventListener("keydown", handleInput);
+
+    function animate() {
+      if (!running) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Spiellogik
+      player.dy += gravity;
+      player.y += player.dy;
+
+      if (player.y + player.size > canvas.height) {
+        player.y = canvas.height - player.size;
+        player.dy = 0;
+      }
+
+      if (player.y < 0) {
+        player.y = 0;
+        player.dy = 0;
+      }
+
+      drawPlayer();
+      drawDino();
+      drawCoin();
+
+      // Kollisionsabfrage
+      if (
+        player.x < coin.x + 40 &&
+        player.x + player.size > coin.x &&
+        player.y < coin.y + 40 &&
+        player.y + player.size > coin.y
+      ) {
+        coins += 1;
+        localStorage.setItem("coins", coins);
+        coin.x = Math.random() * (canvas.width - 100) + 50;
+        coin.y = Math.random() * (canvas.height - 100) + 50;
+        playSound(coinSound);
+        document.getElementById("coin-count").textContent = coins;
+      }
+
+      requestAnimationFrame(animate);
+    }
+  </script>
+</body>
+</html>
